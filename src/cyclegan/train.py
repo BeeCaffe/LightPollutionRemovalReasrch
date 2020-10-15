@@ -91,7 +91,7 @@ transforms_ = [transforms.Resize(int(opt.size*1.12), Image.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))]
 dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True),
-                        batch_size=opt.batchSize, shuffle=False, num_workers=opt.n_cpu)
+                        batch_size=opt.batchSize, shuffle=False, num_workers=opt.n_cpu, drop_last=True)
 # Loss plot
 logger = Logger(opt.n_epochs, len(dataloader))
 ###################################
