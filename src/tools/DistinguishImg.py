@@ -28,9 +28,10 @@ def distinguish_image(path, high_path, low_path, threshold):
 
     print('low illumination numbers:%d,high illumination numbers:%d' % (num_low, num_high))
 
+
 # example
-# init_path = "C:/Users/comin/Desktop/highlightdata256/"
-# t_high_path = "C:/Users/comin/Desktop/high/"
-# t_low_paht = "C:/Users/comin/Desktop/low/"
-# t_threshold = 65
-# distinguish_image(init_path, t_high_path, t_low_paht, t_threshold)
+init_path = "C:/Users/comin/Desktop/highlightdata256/"
+t_high_path = "C:/Users/comin/Desktop/high/"
+t_low_paht = "C:/Users/comin/Desktop/low/"
+t_threshold = 40
+distinguish_image(init_path, t_high_path, t_low_paht, t_threshold)
