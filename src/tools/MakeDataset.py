@@ -5,11 +5,11 @@ import math
 import time
 
 args = {
-    "highLightPath": "res/high/",
-    "lowLightPath": "res/low/",
-    "trainPath": "datasets/firstdataset/train/",
-    "testPath": "datasets/firstdataset/test/",
-    "size": 64,
+    "highLightPath": "res/sourcedata/polluted/",
+    "lowLightPath": "res/sourcedata/unpolluted/",
+    "trainPath": "datasets/threedataset/train/",
+    "testPath": "datasets/threedataset/test/",
+    "size": 256,
     "trainNumber": None,
     "testNumber": None
 }
