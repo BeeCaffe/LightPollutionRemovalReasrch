@@ -1,1 +1,0 @@
-model_name                    loss_function       nums_train     batch_size     epoch          uncmp_psnr     uncmp_rmse     uncmp_ssim     valid_psnr     valid_rmse     valid_ssim     
