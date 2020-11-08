@@ -1,7 +1,7 @@
 import os
 from torch.utils.data import Dataset
 import cv2 as cv
-import utils
+import src.wrapnet.utils as utils
 class SAUnet_Dataset(Dataset):
     def __init__(self, data_root=None, index=None, size=None):
         self.data_root = data_root

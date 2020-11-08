@@ -16,10 +16,10 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 args = {
-    "desire_img_path": 'data/geocor/cam/train',#images path of which you suppose to compensate
+    "desire_img_path": 'datasets/geocor/cam/train/',#images path of which you suppose to compensate
     "save_path": 'data/geocor/cmp/res',#directory of save compensated images
-    'pth_path': 'checkpoint/Warpping-Net-1920-1080_l1+l2+ssim_50_4_1.pth',
-    "size": (1024, 768),#geometric corrected image size
+    'pth_path': 'checkpoint/Warpping-Net-1920-1080_l1+l2+ssim_50_4_100.pth',
+    "size": (1920, 1080),#geometric corrected image size
 }
 
 def cmpImages(pth_path, desire_test_path, save_path):
