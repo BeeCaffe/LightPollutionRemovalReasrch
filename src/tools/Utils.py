@@ -5,6 +5,9 @@ import time
 import math
 import matplotlib.pyplot as plt
 import seaborn as sns
+import torch
+import torch.nn as nn
+import src.pairnet.pytorch_ssim as pytorch_ssim
 
 
 #the unified image size
@@ -667,6 +670,42 @@ def NameShift(filepath, start, end, shift_num):
             if not os.path.exists(filepath + old_name) or os.path.exists(filepath + new_name): continue
             os.rename(filepath + old_name, filepath + new_name)
 
+# compute PSNR
+def psnr(x, y):
+    x = torch.tensor(x)
+    y = torch.tensor(y)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x = x.to(device) if x.device.type != device.type else x
+    y = y.to(device) if y.device.type != device.type else y
+
+    with torch.no_grad():
+        l2_fun = nn.MSELoss()
+        return 10 * math.log10(1 / l2_fun(x, y))
+
+
+# compute RMSE
+def rmse(x, y):
+    x = torch.tensor(x)
+    y = torch.tensor(y)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x = x.to(device) if x.device.type != device.type else x
+    y = y.to(device) if y.device.type != device.type else y
+
+    with torch.no_grad():
+        l2_fun = nn.MSELoss()
+        return math.sqrt(l2_fun(x, y).item() * 3)
+
+
+# compute SSIM
+def ssim(x, y):
+    x = torch.tensor(x)
+    y = torch.tensor(y)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x = x.to(device) if x.device.type != device.type else x
+    y = y.to(device) if y.device.type != device.type else y
+
+    with torch.no_grad():
+        return pytorch_ssim.ssim(x, y).item()
 
 if __name__=="__main__":
     im1 = cv2.imread('resources/evaluation/Ours/21.JPG')

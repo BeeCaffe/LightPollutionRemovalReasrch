@@ -242,6 +242,8 @@ def getImgs(inputData):
 
 # compute PSNR
 def psnr(x, y):
+    x = torch.tensor(x)
+    y = torch.tensor(y)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x = x.to(device) if x.device.type != device.type else x
     y = y.to(device) if y.device.type != device.type else y
@@ -253,6 +255,8 @@ def psnr(x, y):
 
 # compute RMSE
 def rmse(x, y):
+    x = torch.tensor(x)
+    y = torch.tensor(y)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x = x.to(device) if x.device.type != device.type else x
     y = y.to(device) if y.device.type != device.type else y
@@ -264,6 +268,8 @@ def rmse(x, y):
 
 # compute SSIM
 def ssim(x, y):
+    x = torch.tensor(x)
+    y = torch.tensor(y)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x = x.to(device) if x.device.type != device.type else x
     y = y.to(device) if y.device.type != device.type else y
