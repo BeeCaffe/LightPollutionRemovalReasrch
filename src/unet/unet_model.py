@@ -6,12 +6,13 @@ from .unet_parts import *
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
+    def __init__(self, in_channels=3, out_channels=3, residel_num=3):
         super(UNet, self).__init__()
         self.name = "BCCN_Sub_Net"
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.relu = nn.ReLU()
+        self.residel_num = residel_num
         self.down1 = nn.Sequential(
             nn.Conv2d(3, 32, 3, 2, 1),
             nn.BatchNorm2d(32),
@@ -44,17 +45,19 @@ class UNet(nn.Module):
         )
 
     def forward(self, x):
-        x_in = x
         x_skip = self.skipConv(x)
         #prospect compensation net
         x1 = self.down1(x)
         x2 = self.down2(x1)
         x3 = self.down3(x2)
-        x = self.res1(x3)
-        x = self.res1(x)
-        x = self.res1(x)
-        x = self.res1(x)
-        x = self.res1(x)
+        x = x3
+        if self.residel_num != 0:
+            x = self.res1(x)
+            for i in range(0, self.residel_num-1):
+                x = self.res1(x)
+        else:
+            pass
+
         x = self.relu(self.up1(x)+x2)#(64,64,64)
         x = self.relu(self.up2(x)+x1)#(32,128,128)
         x = self.relu(self.up3(x)+x_skip)#(3,256,256)

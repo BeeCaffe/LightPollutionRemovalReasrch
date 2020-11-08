@@ -5,7 +5,7 @@ CompenNet++ CNN model
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import  src.pairnet.pytorch_tps as pytorch_tps
+import src.wrapnet.pytorch_tps as pytorch_tps
 import copy
 import numpy as np
 import cv2
@@ -85,6 +85,7 @@ class CompenNet(nn.Module):
         res2_s = self.relu(self.conv2_s(res1_s)) if self.res2_s is None else self.res2_s
         res3_s = self.relu(self.conv3_s(res2_s)) if self.res3_s is None else self.res3_s
         res4_s = self.relu(self.conv4_s(res3_s)) if self.res4_s is None else self.res4_s
+
         # backbone
         res1 = self.skipConv1(x)
         x = self.relu(self.conv1(x) + res1_s)

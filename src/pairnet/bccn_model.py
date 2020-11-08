@@ -20,30 +20,25 @@ class Bccn_Net(nn.Module):
         g = unpolluted[:, 1, :, :]
         r = unpolluted[:, 2, :, :]
         bc = torch.max(torch.max(b, g), r).unsqueeze(1)
-        mask = self.weight*bc
-        # mask = (mask > self.threshold).float()
-        # # print(self.weight)
-        # if DEBUG:
-        #     img = bc_back[0].permute(1, 2, 0).mul(255).to('cpu').detach().numpy()
-        #     img = np.uint8(img)
-        #     cv2.imshow('back', img)
-        #     cv2.waitKey(0)
-        #     cv2.destroyAllWindows()
-        # bc_pro = torch.ones_like(bc) - self.weight*bc
-        # if DEBUG:
-        #     img = bc_pro[0].permute(1, 2, 0).mul(255).to('cpu').detach().numpy()
-        #     img = np.uint8(img)
-        #     cv2.imshow('pro', img)
-        #     cv2.waitKey(0)
-        #     cv2.destroyAllWindows()
-        # back = self.bccn_back(polluted)
-        # pro = self.bccn_pro(polluted)
-        # pro = torch.mul(pro, bc_pro)
-        # back = torch.mul(back, bc_back)
-        polluted_pred = self.bccn_back(polluted)
-        low_light = torch.mul(polluted_pred, 1 - mask)
-        high_ligh = torch.mul(polluted, mask)
-        x = torch.clamp(low_light+high_ligh, max=1)
+        if DEBUG:
+            img = bc[0].permute(1, 2, 0).mul(255).to('cpu').detach().numpy()
+            img = np.uint8(img)
+            cv2.imshow('back', img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+        bc_pro = torch.ones_like(bc) - self.weight*bc
+        if DEBUG:
+            img = bc_pro[0].permute(1, 2, 0).mul(255).to('cpu').detach().numpy()
+            img = np.uint8(img)
+            cv2.imshow('pro', img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+        back = self.bccn_back(polluted)
+        pro = self.bccn_pro(polluted)
+        pro = torch.mul(pro, bc_pro)
+        back = torch.mul(back, bc)
+        x = torch.clamp(back+pro, max=1)
+        x = torch.softmax(x)
         return x
 
 class Bccn_Sub_Net(nn.Module):
