@@ -3,12 +3,14 @@ from torch.utils.data import Dataset
 import cv2 as cv
 import src.pairnet.utils as utils
 class SAUnet_Dataset(Dataset):
-    def __init__(self, data_root=None, index=None, size=None):
+    def __init__(self, data_root=None, index=None, size=None, num=None):
         self.data_root = data_root
         self.size = size
         img_list = sorted(os.listdir(self.data_root))
         if index is not None: img_list = [img_list[x] for x in index]
         self.img_names = [utils.join(self.data_root, name) for name in img_list]
+        if num is not None:
+            self.img_names = self.img_names[0:num]
 
     def __len__(self):
         return len(self.img_names)

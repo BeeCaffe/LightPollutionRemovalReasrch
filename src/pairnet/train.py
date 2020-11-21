@@ -1,8 +1,8 @@
-from src.pairnet.TrainUtils import *
-import src.pairnet.bccn_model as bccn_model
+from src.unet.my_trainutils import *
 import src.pairnet.valid as valid
-from time import localtime, strftime
-from src.pairnet.utils import *
+import src.pairnet.bccn_model as bccn_model
+import os
+import torch
 DEBUG = False
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 device_ids = [0]
@@ -13,33 +13,27 @@ else:
     print('Train with CPU...')
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-def logCreate(args=None):
-    if not os.path.exists(args['log_dir']): os.makedirs(args['log_dir'])
-    log_file_name = strftime('%Y-%m-%d-%H-%M-%S', localtime())+'.txt'
-    log_file = open(fullfile(args.get('log_dir'), log_file_name), 'w')
-    title_str = '{:<30}{:<20}{:<15}{:<15}{:<15}{:<15}{:<15}{:<15}{:<15}{:<15}{:<15}\n'
-    log_file.write(title_str.format('model_name', 'loss_function', 'nums_train', 'batch_size', 'epoch',
-                                    'uncmp_psnr', 'uncmp_rmse', 'uncmp_ssim', 'valid_psnr', 'valid_rmse', 'valid_ssim'))
-    log_file.close()
-    return log_file_name
-
-args = dict(dataset_root='datasets/seconddataset',
-                loss_list=['l1+l2+ssim'],
+args = dict(dataset_root='datasets/dataset_512_no_gama_new/',
+                loss_list=['l2'],
+                # loss_list=['l2'],
                 loss='',
-                model_name='PairNet_BC',#pair Net self mask
-                log_dir='log',
-                test_a="test/A/",
-                test_b="test/B/",
-                train_a="train/A/",
-                train_b="train/B/",
-                test_ex_path="res/test/A/",
-                test_save_path="output/",
-                nums_train=2500,
+                model_name='pair_net',
+                res_block_num_list=[0],
+                res_block_num=[],
+                log_dir='log/',
+                warpping_net_pth='checkpoint/Warpping-Net_l1+l2+ssim_4000_256_50_0.001_0.2_5000_0.0001.pth',
+                model_type="pair_net", #"my_unet", "real_unet", "compennet"
+                back_gamma_lists=[1.2],
+                pro_gamma_lists=[1.4, 1.8],
+                is_train_mask_list=[True, False],
+                is_train_mask=True,
+                back_gamma=1.8,
+                pro_gamma=1.2,
+                nums_train=4000,
+                nums_valid=200,
                 train_size=(256, 256),
-                test_num=400,
+                weight=2.,
                 prj_size=(256, 256),
-                weight_init=[1.],
-                weight=0,
                 epoch=10,
                 batch_size=16,
                 vgg_lambda=1e-2,
@@ -52,53 +46,80 @@ args = dict(dataset_root='datasets/seconddataset',
                 train_plot_rate=50,
                 valid_rate=200,
                 save_compensation=True,
-                gamma_grad=False,
+                gamma_grad=True,
                 train_res_ratio=1)
-#log file
-log_file_name = logCreate(args=args)
-polutted_valid_path = fullfile(args.get('dataset_root'), args['test_a'])
-unpollted_valid_path = fullfile(args.get('dataset_root'), args['test_b'])
-# read valid data
-test_indexs = list(range(0, args['test_num']))
-polutted_valid = readImgsMT(polutted_valid_path, size=args['train_size'], index= test_indexs)
-unpolutted_valid = readImgsMT(unpollted_valid_path, size=args['prj_size'], index= test_indexs)
-valid_data = dict(cam_valid=polutted_valid, prj_valid=unpolutted_valid)
-for loss in args.get('loss_list'):
-    for weight in args['weight_init']:
-        # load model
-        args['weight']=weight
-        model = bccn_model.Bccn_Net(weight=args['weight'])
-        if torch.cuda.device_count() >= 1: model_pro = nn.DataParallel(model, device_ids=device_ids).to(device)
-        resetRNGseed(0)
-        args['loss'] = loss
-        print('-----------------------------------------Start Train {:s}-----------------------------------'.format(args.get('model_name')))
-        data_path_dict = {
-            'polluted_train': args['train_a'],
-            'unpolluted_train': args['train_b']
-        }
-        pth, valid_psnr, valid_rmse, valid_ssim = trainModel(model, valid_data, data_path_dict, args)
 
-        # save result to log file
-        log_file = open(fullfile(args.get('log_dir'), log_file_name), 'a')
-        ret_str = '{:<30}{:<20}{:<15}{:<15}{:<15}{:<15.4f}{:<15.4f}{:<15.4f}{:<15.4f}{:<15.4f}{:<15.4f}\n'
-        cam_valid_resize = F.interpolate(polutted_valid, unpolutted_valid.shape[2:4])
-        log_file.write(ret_str.format(args.get('model_name'), loss, args['nums_train'], args['batch_size'],
-                                      args['epoch'], psnr(cam_valid_resize, unpolutted_valid),
-                                      rmse(cam_valid_resize, unpolutted_valid),
-                                      ssim(cam_valid_resize, unpolutted_valid), valid_psnr, valid_rmse, valid_ssim))
-        log_file.close()
-        if args['save_compensation']:
-            print('------------------------------------ Start Valid {:s} ---------------------------'.format(args['model_name']))
-            torch.cuda.empty_cache()
-            desire_test_path = args['test_ex_path']
-            save_path = args['test_save_path']
-            assert os.path.isdir(desire_test_path), 'images and folder {:s} does not exist!'.format(desire_test_path)
-            # compensate and save images
-            valid.cmpImages(pth_path=pth, desire_test_path=desire_test_path, save_path=save_path)
-            print('Compensation images saved to {}', save_path)
-# clear cache
-del model_pro
-torch.cuda.empty_cache()
-print('----------------------------------------- Done! ------------------------------\n')
+def optionToString(train_option):
+    return '{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(train_option['model_name'],
+                                    train_option['loss'],
+                                    train_option['nums_train'],
+                                    train_option['batch_size'],
+                                    train_option['epoch'],
+                                    train_option['res_block_num'],
+                                    train_option['back_gamma'],
+                                    train_option['pro_gamma'],
+                                    train_option['is_train_mask'])
+
+def saveDict(args=None, save_args=None):
+    log_dir = args.get('log_dir')+args['model_name']+'/'
+    if not os.path.exists(log_dir): os.makedirs(log_dir)
+    log_file_name = optionToString(args)+'.npy'
+    log_file = fullfile(log_dir, log_file_name)
+    np.save(log_file, save_args)
+
+checkpoint_pth = "checkpoint/"+args['model_name']+'/'
+output_pth = "output/"+args['model_name']+'/'
+desire_path = "res/input/"
+if not os.path.exists(checkpoint_pth):
+    os.makedirs(checkpoint_pth)
+if not os.path.exists(output_pth):
+    os.makedirs(output_pth)
+
+#load warpping net
+warping_net_model = torch.load(args['warpping_net_pth'])
+#read valid data
+cam_valid_path = args.get('dataset_root')+'cam/test'
+prj_valid_path = args.get('dataset_root')+'prj/test'
+# read valid data
+cam_valid = readImgsMT(cam_valid_path, size=args['train_size'], num=args['nums_valid'])
+prj_valid = readImgsMT(prj_valid_path, size=args['prj_size'], num=args['nums_valid'])
+cam_valid = warping_net_model(cam_valid)
+valid_data = dict(cam_valid=cam_valid, prj_valid=prj_valid)
+for num in args['res_block_num_list']:
+    for back_gamma in args['back_gamma_lists']:
+        for pro_gamma in args['pro_gamma_lists']:
+            for is_train_mask in args['is_train_mask_list']:
+                args['is_train_mask'] = is_train_mask
+                args['res_block_num'] = num
+                args['pro_gamma'] = pro_gamma
+                args['back_gamma'] = back_gamma
+                #load model
+                model = bccn_model.Bccn_Net(args['weight'])
+                mask_net = bccn_model.MaskNet(3, 1)
+                if torch.cuda.device_count() >= 1: model = nn.DataParallel(model, device_ids=device_ids).to(device)
+                if torch.cuda.device_count() >= 1: mask_net = nn.DataParallel(mask_net, device_ids=device_ids).to(device)
+                for loss in args.get('loss_list'):
+                    args['loss'] = loss
+                    resetRNGseed(0)
+                    print('-----------------------------------------Start Train {:s}-----------------------------------'.format(args.get('model_name')))
+                    cam_path_dict = {
+                        'cam_train': 'cam/train',
+                        'prj_train': 'prj/train'
+                    }
+                    # back_path, pro_path, valid_psnr, valid_rmse, valid_ssim = MyTrainUtils.TrainProcess(model_pro, model_back,warping_net_model, valid_data, cam_path_dict, args).Train()
+                    pth, mask_pth, valid_psnr, valid_rmse, valid_ssim, train_msg_1 = TrainProcess(model, mask_net,warping_net_model, valid_data, cam_path_dict, args).Train()
+                    # save result to log file
+                    saveDict(args, train_msg_1)
+                    if args['save_compensation']:
+                        print('------------------------------------ Start Valid {:s} ---------------------------'.format(args['model_name']))
+                        torch.cuda.empty_cache()
+                        assert os.path.isdir(desire_path), 'images and folder {:s} does not exist!'.format(desire_path)
+                        # compensate and save images
+                        valid.cmpImages(pth_path=pth, mask_pth=mask_pth, desire_test_path=desire_path, save_path=output_pth)
+                        print('Compensation images saved to {}', output_pth)
+                # clear cache
+                del model
+                torch.cuda.empty_cache()
+                print('----------------------------------------- Done! ------------------------------\n')
 
 

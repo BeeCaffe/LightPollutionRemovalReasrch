@@ -1,7 +1,8 @@
 from src.unet.my_trainutils import *
 import src.unet.valid as valid
 from time import localtime, strftime
-import src.unet.unet_model as unet_model
+import src.unet.my_unet_model as unet_model
+import src.unet.unet_model as real_unet
 import os
 import torch
 DEBUG = False
@@ -15,16 +16,18 @@ else:
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 args = dict(dataset_root='datasets/dataset_512_no_gama_new/',
-                loss_list=['l1','l2','l1+l2','l1+ssim','l2+ssim','l1+l2+ssim'],
-                # loss_list=['l2'   ],
+                # loss_list=['l1','l2','l1+l2','l1+ssim','l2+ssim','l1+l2+ssim'],
+                loss_list=['l2'],
                 loss='',
                 model_name='unet',
-                res_block_num_list=[1],
+                res_block_num_list=[0],
                 res_block_num=[],
                 log_dir='log/',
                 warpping_net_pth='checkpoint/Warpping-Net_l1+l2+ssim_4000_256_50_0.001_0.2_5000_0.0001.pth',
+                model_type="real_unet", #"my_unet", "real_unet", "compennet"
                 gamma_list=[1.0],
                 nums_train=4000,
+                nums_valid=50,
                 train_size=(256, 256),
                 prj_size=(256, 256),
                 gamma=1.0,
@@ -73,8 +76,8 @@ warping_net_model = torch.load(args['warpping_net_pth'])
 cam_valid_path = args.get('dataset_root')+'cam/test'
 prj_valid_path = args.get('dataset_root')+'prj/test'
 # read valid data
-cam_valid = readImgsMT(cam_valid_path, size=args['train_size'])
-prj_valid = readImgsMT(prj_valid_path, size=args['prj_size'])
+cam_valid = readImgsMT(cam_valid_path, size=args['train_size'], num=args['nums_valid'])
+prj_valid = readImgsMT(prj_valid_path, size=args['prj_size'], num=args['nums_valid'])
 cam_valid = warping_net_model(cam_valid)
 valid_data = dict(cam_valid=cam_valid, prj_valid=prj_valid)
 for num in args['res_block_num_list']:
@@ -83,9 +86,12 @@ for num in args['res_block_num_list']:
         args['gamma'] = gamma
         #log file
         #load model
-        model = unet_model.UNet(3, 3, residel_num=args['res_block_num'])
+        model = None
+        if args['model_type']=="my_unet":
+            model = unet_model.UNet(3, 3, residel_num=args['res_block_num'])
+        elif args['model_type']=='real_unet':
+            model = real_unet.UNet(3, 3)
         if torch.cuda.device_count() >= 1: model_pro = nn.DataParallel(model, device_ids=device_ids).to(device)
-
         for loss in args.get('loss_list'):
             args['loss'] = loss
             resetRNGseed(0)

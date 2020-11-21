@@ -4,13 +4,15 @@ import os
 import src.wrapnet.GetWarppedImage as geo
 import src.tools.Utils as utils
 import src.tools.GetRegion as GetRegion
+debug = False
 args = dict(
     input_img_path='res/input/',
-    projected_img_path='data/geocor/cmp/res/Warpping-Net-1920-1080_l1+l2+ssim_50_4_100/',
+    projected_img_path='I:\hemispherical\pair-net\\untrain_mask\\1.8\\',
     weight_path='checkpoint/Warpping-Net-1920-1080_l1+l2+ssim_50_4_100.pth',
     width=1920,
     height=1080,
-    need_geo_cor=False,
+    compute_size=(256, 256),
+    need_geo_cor=True,
     cor_pt=(570, 210),
     cor_size=(820, 450)
 )
@@ -18,6 +20,10 @@ args = dict(
 def ReadImage():
     input_name_list = os.listdir(args['input_img_path'])
     prj_name_list = os.listdir(args['projected_img_path'])
+    input_name_list.sort(key=lambda x: int(x[:-4]))
+    prj_name_list.sort(key=lambda x: int(x[:-4]))
+    sorted(input_name_list)
+    sorted(prj_name_list)
     input_imgs = []
     prj_imgs = []
     for in_name in input_name_list:
@@ -36,16 +42,11 @@ def CorrectImage(input_imgs, prj_imgs):
               .format(len(input_imgs), len(prj_imgs)))
         exit(0)
     for i in range(0, len(input_imgs)):
-        input_img = GetRegion.GetRegion2(input_imgs[i],
+        prj_imgs[i] = GetRegion.GetRegion2(prj_imgs[i],
                                              pt=args['cor_pt'],
                                              width=args['cor_size'][0],
                                              height=args['cor_size'][1])
-        input_imgs[i] = geo.cmpImage(args['weight_path'], input_img)
-        prj_img = GetRegion.GetRegion2(prj_imgs[i],
-                                             pt=args['cor_pt'],
-                                             width=args['cor_size'][0],
-                                             height=args['cor_size'][1])
-        prj_imgs[i] = geo.cmpImage(args['weight_path'], prj_img)
+    prj_imgs = geo.cmpImage(args['weight_path'], prj_imgs, size=(1920, 1080))
     return input_imgs, prj_imgs
 
 def CalculateObjectiveEvaluationIndex():
@@ -56,11 +57,14 @@ def CalculateObjectiveEvaluationIndex():
     ssim_lists = []
     rmse_lists = []
     for x, y in zip(prj_imgs, input_imgs):
-    #     cv2.imshow("img", x)
-    #     cv2.waitKey(0)
-    #     cv2.imshow("img", y)
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
+        x = cv2.resize(x, args['compute_size'])
+        y = cv2.resize(y, args['compute_size'])
+        if debug:
+            cv2.imshow("img", x)
+            cv2.waitKey(0)
+            cv2.imshow("img", y)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
         psnr = utils.psnr(x, y)
         ssim = utils.ssim(x, y)
         rmse = utils.rmse(x, y)

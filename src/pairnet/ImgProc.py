@@ -1,8 +1,7 @@
 import numpy as np
 import cv2 as cv
 import torch
-import src.pairnet.utils as utils
-import src.pairnet.ImgProc as ImgProc
+import src.wrapnet.utils as utils
 DEBUG=False
 # find the projector FOV mask
 def get_mask_corner(cam_ref_path,train_option):
@@ -15,20 +14,6 @@ def get_mask_corner(cam_ref_path,train_option):
     cam_surf = utils.readImgsMT(cam_ref_path, index=[0], size=train_option['train_size'])
     im_diff = utils.readImgsMT(cam_ref_path, index=[0], size=train_option['train_size'])
 
-    if DEBUG:
-        img = cam_surf[0].permute(1, 2, 0).mul(255).to('cpu').numpy()
-        img = np.uint8(img)
-        cv.imshow('cam_surf img'
-                  '', img)
-        cv.waitKey(0)
-        cv.destroyAllWindows()
-    if DEBUG:
-        img = im_diff[0].permute(1, 2, 0).mul(255).to('cpu').numpy()
-        img = np.uint8(img)
-        cv.imshow('im_diff img'
-                  '', img)
-        cv.waitKey(0)
-        cv.destroyAllWindows()
 
     im_diff = im_diff.numpy().transpose((2, 3, 1, 0))
     # print(im_diff.shape)
@@ -36,7 +21,7 @@ def get_mask_corner(cam_ref_path,train_option):
     # threshold im_diff with Otsu's method
     mask_corners = [None] * im_diff.shape[-1]
     for i in range(im_diff.shape[-1]):
-        im_mask, mask_corners[i] = ImgProc.thresh(im_diff[:, :, :, i])
+        im_mask, mask_corners[i] = thresh(im_diff[:, :, :, i])
         prj_fov_mask[i, :, :, :] = utils.repeat_np(torch.Tensor(np.uint8(im_mask)).unsqueeze(0), 3, 0)
     prj_fov_mask = prj_fov_mask.byte()
 
@@ -56,7 +41,7 @@ def thresh(im_in):
         im_in = cv.cvtColor(im_in, cv.COLOR_BGR2GRAY)
     if im_in.dtype == 'float32':
         im_in = np.uint8(im_in * 255)
-    # _, im_mask = cv.threshold(cv.GaussianBlur(im_in, (5, 5), 0), 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+    _, im_mask = cv.threshold(cv.GaussianBlur(im_in, (5, 5), 0), 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
     _, im_mask = cv.threshold(im_in, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
     im_mask = im_mask > 0
     # find the largest contour by area then convert it to convex hull

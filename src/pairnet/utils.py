@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import src.pairnet.pytorch_ssim as pytorch_ssim
 from torch.utils.data import DataLoader
-import src.pairnet.dataset as dataset
+import src.unet.dataset as dataset
 
 def process(title,now,total,startTm,nowTm):
     """
@@ -49,8 +49,8 @@ def resetRNGseed(seed):
 
 
 # read images using multi-thread
-def readImgsMT(img_dir, size=None, index=None):
-    img_dataset = dataset.SAUnet_Dataset(img_dir, index=index, size=size)
+def readImgsMT(img_dir, size=None, index=None, num=None):
+    img_dataset = dataset.SAUnet_Dataset(img_dir, index=index, size=size, num=num)
     data_loader = DataLoader(img_dataset, batch_size=len(img_dataset), shuffle=False, drop_last=False, num_workers=0)
 
     for i, imgs in enumerate(data_loader):

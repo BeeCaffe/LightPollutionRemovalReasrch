@@ -1,7 +1,7 @@
 from src.unet.my_trainutils import *
 import src.unet.utils as utils
 import time
-import src.unet.unet_model as unet_model
+import src.unet.my_unet_model as unet_model
 from time import localtime,strftime
 __DEBUG=False
 os.environ['CUDA_VISIBLE_DEVICES']='0'
