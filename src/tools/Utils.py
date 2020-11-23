@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 import torch.nn as nn
-import src.pairnet.pytorch_ssim as pytorch_ssim
 
 
 #the unified image size
@@ -710,7 +709,6 @@ def ssim(x, y):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x = x.to(device) if x.device.type != device.type else x
     y = y.to(device) if y.device.type != device.type else y
-
     with torch.no_grad():
         return pytorch_ssim.ssim(x, y).item()
 

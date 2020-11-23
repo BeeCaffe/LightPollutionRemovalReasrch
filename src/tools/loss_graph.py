@@ -3,10 +3,10 @@ import pickle
 import matplotlib.pyplot as plt
 import os
 import cv2
-import src.tools.Utils  as utils
+import src.tools.Utils as utils
 
 args = dict(
-    dictdir='src/pairnet/log/loss/'
+    dictdir='src/pairnet/log/model/'
 )
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -101,7 +101,7 @@ def drawSSIMGraph():
     ret_img = cv2.imread("./ssim_graph.jpg")
     return ret_img
 
-def choosePoint(arr, epoch_range = (0, 25000), step=500):
+def choosePoint(arr, epoch_range = (0, 12500), step=500):
     new_arr = []
     start = epoch_range[0]
     end = epoch_range[1]
