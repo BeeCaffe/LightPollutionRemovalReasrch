@@ -6,8 +6,9 @@ import sys
 from torch.autograd import Variable
 import torch
 from visdom import Visdom
+from src.cyclegan_pairnet.utils import img_log
 import numpy as np
-
+DEBUG = False
 
 def tensor2image(tensor):
     image = 127.5 * (tensor[0].cpu().float().numpy() + 1.0)
@@ -65,12 +66,14 @@ class Logger():
             # Plot losses
             for loss_name, loss in self.losses.items():
                 if loss_name not in self.loss_windows:
+                    loss_np = loss.cpu().numpy()
                     self.loss_windows[loss_name] = self.viz.line(X=np.array([self.epoch]),
-                                                                 Y=np.array([loss / self.batch]),
+                                                                 Y=np.array([loss_np / self.batch]),
                                                                  opts={'xlabel': 'epochs', 'ylabel': loss_name,
                                                                        'title': loss_name})
                 else:
-                    self.viz.line(X=np.array([self.epoch]), Y=np.array([loss / self.batch]),
+                    loss_np = loss.cpu().numpy()
+                    self.viz.line(X=np.array([self.epoch]), Y=np.array([loss_np / self.batch]),
                                   win=self.loss_windows[loss_name], update='append')
                 # Reset losses for next epoch
                 self.losses[loss_name] = 0.0
@@ -123,3 +126,4 @@ def weights_init_normal(m):
     elif classname.find('BatchNorm2d') != -1:
         torch.nn.init.normal(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant(m.bias.data, 0.0)
+

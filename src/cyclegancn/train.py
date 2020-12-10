@@ -9,21 +9,25 @@ from torch.autograd import Variable
 from PIL import Image
 import torch
 
-from src.cyclegan.models import Generator
-from src.cyclegan.models import Discriminator
-from src.cyclegan.utils import ReplayBuffer
-from src.cyclegan.utils import LambdaLR
-from src.cyclegan.utils import Logger
-from src.cyclegan.utils import weights_init_normal
+from src.cyclegancn.models import Generator
+from src.cyclegancn.models import Discriminator
+from src.cyclegancn.utils import ReplayBuffer
+from src.cyclegancn.utils import LambdaLR
+from src.cyclegancn.utils import Logger
+from src.cyclegancn.utils import weights_init_normal
 from src.cyclegancn.datasets import ImageDataset
 import os
 
+"""
+    A: camera captured image
+    B: projector input image 
+"""
 parser = argparse.ArgumentParser()
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 parser.add_argument('--epoch', type=int, default=0, help='starting epoch')
-parser.add_argument('--n_epochs', type=int, default=20, help='number of epochs of training')
-parser.add_argument('--batchSize', type=int, default=32, help='size of the batches')
-parser.add_argument('--dataroot', type=str, default='datasets/seconddataset/', help='root directory of the dataset')
+parser.add_argument('--n_epochs', type=int, default=50, help='number of epochs of training')
+parser.add_argument('--batchSize', type=int, default=16, help='size of the batches')
+parser.add_argument('--dataroot', type=str, default='datasets/cyclecn-hemi/', help='root directory of the dataset')
 parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate')
 parser.add_argument('--decay_epoch', type=int, default=5, help='epoch to start linearly decaying the learning rate to 0')
 parser.add_argument('--size', type=int, default=64, help='size of the data crop (squared assumed)')
@@ -31,6 +35,9 @@ parser.add_argument('--input_nc', type=int, default=3, help='number of channels 
 parser.add_argument('--output_nc', type=int, default=3, help='number of channels of output data')
 parser.add_argument('--cuda', action='store_false', help='use GPU computation')
 parser.add_argument('--n_cpu', type=int, default=0, help='number of cpu threads to use during batch generation')
+parser.add_argument('--gamma', type=float, default=1., help='gamma correction value')
+parser.add_argument('--train_num', type=int, default=20000, help='how many image used to train')
+
 opt = parser.parse_args()
 print(opt)
 
@@ -90,7 +97,7 @@ transforms_ = [transforms.Resize(int(opt.size*1.12), Image.BICUBIC),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))]
-dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True),
+dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True, train_number=opt.train_num, gamma=opt.gamma),
                         batch_size=opt.batchSize, shuffle=False, num_workers=opt.n_cpu, drop_last=True)
 # Loss plot
 logger = Logger(opt.n_epochs, len(dataloader))

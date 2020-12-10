@@ -11,7 +11,7 @@ from torch.autograd import Variable
 import torch
 
 from src.cyclegan.models import Generator
-from src.cyclegan.datasets import ImageDataset
+from src.cyclegancn.datasets import ImageDataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batchSize', type=int, default=1, help='size of the batches')

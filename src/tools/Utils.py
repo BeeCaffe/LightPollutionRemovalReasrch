@@ -69,27 +69,6 @@ def Resize(img,width,height):
     img = cv2.resize(img,(width,height))
     return img
 
-def SplitImage(img):
-        """
-        function:
-            SplitImage(srcFileName,saveFileName)
-        goal:
-            This function writing to split a picture into two same part from the middle of this picture
-        args:
-            prj-the image you want to split
-        return: 
-            imgLeft-the left part of image
-            imgRight-the right part of image
-        """
-        #get the width and hight of image
-        width=img.shape[1]
-        height=img.shape[0]
-        #split the image
-        imgLeft=img[0:height,0:int(width/2)]
-        imgRight=img[0:height,int(width/2):]
-        #return the left and right part of image
-        return imgLeft,imgRight
-
 def SplitImageByLine(img,offset):
         """
         function:

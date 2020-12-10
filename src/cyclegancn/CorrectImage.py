@@ -9,16 +9,19 @@ from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import torch
+import cv2
+from src.cyclegan_pairnet.train import combine
 
 from src.cyclegan.models import Generator
 from src.cyclegancn.datasets import ImageDataset
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--dataset_name', type=str, default="cyclecn", help='size of the batches')
 parser.add_argument('--batchSize', type=int, default=1, help='size of the batches')
-parser.add_argument('--dataroot', type=str, default='datasets/firstdataset/', help='root directory of the dataset')
+parser.add_argument('--dataroot', type=str, default='input/cyclegancn/', help='root directory of the dataset')
 parser.add_argument('--input_nc', type=int, default=3, help='number of channels of input data')
 parser.add_argument('--output_nc', type=int, default=3, help='number of channels of output data')
-parser.add_argument('--size', type=int, default=64, help='size of the data (squared assumed)')
+parser.add_argument('--size', type=int, default=(1024, 768), help='size of the data (squared assumed)')
 parser.add_argument('--cuda', action='store_false', help='use GPU computation')
 parser.add_argument('--n_cpu', type=int, default=0, help='number of cpu threads to use during batch generation')
 parser.add_argument('--generator_A2B', type=str, default='output/netG_A2B.pth', help='A2B generator checkpoint file')
@@ -48,23 +51,25 @@ netG_B2A.eval()
 
 # Inputs & targets memory allocation
 Tensor = torch.cuda.FloatTensor if opt.cuda else torch.Tensor
-input_A = Tensor(opt.batchSize, opt.input_nc, opt.size, opt.size)
-input_B = Tensor(opt.batchSize, opt.output_nc, opt.size, opt.size)
+input_A = Tensor(opt.batchSize, opt.input_nc, opt.size[1], opt.size[0])
+input_B = Tensor(opt.batchSize, opt.output_nc, opt.size[1], opt.size[0])
 
 # Dataset loader
 transforms_ = [ transforms.ToTensor(),
-                transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
-dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, mode='test'),
+                transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))]
+
+dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, mode='test', img_size=opt.size),
                         batch_size=opt.batchSize, shuffle=False, num_workers=opt.n_cpu)
 ###################################
 
 ###### Testing######
 
 # Create output dirs if they don't exist
-if not os.path.exists('output/A'):
-    os.makedirs('output/A')
-if not os.path.exists('output/B'):
-    os.makedirs('output/B')
+file_name = 'output/cyclegancn/' + opt.dataset_name
+if not os.path.exists(file_name+'/A'):
+    os.makedirs(file_name+'/A')
+if not os.path.exists(file_name+'/B'):
+    os.makedirs(file_name+'/B')
 
 for i, batch in enumerate(dataloader):
     # Set model input
@@ -76,8 +81,13 @@ for i, batch in enumerate(dataloader):
     fake_A = 0.5*(netG_B2A(real_B).data + 1.0)
 
     # Save image files
-    save_image(fake_A, 'output/A/%04d.png' % (i+1))
-    save_image(fake_B, 'output/B/%04d.png' % (i+1))
+    print(fake_A.shape)
+    save_image(fake_A, file_name+'/A/%04d.png' % (i+1))
+    save_image(fake_B, file_name+'/B/%04d.png' % (i+1))
+    fake_A = cv2.resize(cv2.imread(file_name+'/A/%04d.png' % (i+1)), (1920, 1080))
+    fake_B = cv2.resize(cv2.imread(file_name+'/B/%04d.png' % (i+1)), (1920, 1080))
+    cv2.imwrite(file_name+'/A/%04d.png'%(i+1), fake_A)
+    cv2.imwrite(file_name+'/B/%04d.png'%(i+1), fake_B)
 
     sys.stdout.write('\rGenerated images %04d of %04d' % (i+1, len(dataloader)))
 
