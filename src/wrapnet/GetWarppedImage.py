@@ -16,9 +16,9 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 args = {
-    "desire_img_path": 'datasets/dataset_512_no_gama_new/cam/train/',#images path of which you suppose to compensate
-    "save_path": 'datasets/pairnet_geocored/cam/',#directory of save compensated images
-    'pth_path': 'checkpoint/Warpping-Net_l1+l2+ssim_4000_256_50_0.001_0.2_5000_0.0001.pth',
+    "desire_img_path": r'F:\yandl\CompenNet-plusplus3.0\data\dataset_512_gama1.5\cam\train/',#images path of which you suppose to compensate
+    "save_path": r'F:\yandl\CompenNet-plusplus3.0\data\dataset_512_gama1.5\cam\train_geocorrected/',#directory of save compensated images
+    'pth_path': r'F:\yandl\LightPollutionRemovalReasrch\src\wrapnet\checkpoint\Warpping-Net-1920-1080_l1+l2+ssim_50_4_200.pth',
     "size": (1920, 1080),#geometric corrected image size
 }
 

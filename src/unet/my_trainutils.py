@@ -6,27 +6,26 @@ import torch
 import cv2
 DEBUG = True
 import src.unet.utils as utils
+import src.unet.hsvloss as HSV
 
 l1_fun = nn.L1Loss()
 l2_fun = nn.MSELoss()
 ssim_fun = pytorch_ssim.SSIM()
 
 class TrainProcess():
-    def __init__(self, model, mask_net, warpping_net_model, valid_data, cam_path_dict, train_option):
+    def __init__(self, model, warpping_net_model, valid_data, cam_path_dict, train_option):
         self.l1_fun = nn.L1Loss()
         self.l2_fun = nn.MSELoss()
         self.ssim_fun = pytorch_ssim.SSIM()
         self.model = model
-        self.warpping_net_model = warpping_net_model
         self.valid_data = valid_data
+        self.warpping_net_model = warpping_net_model
         self.cam_path_dict = cam_path_dict
         self.train_option = train_option
         self.device = self.train_option.get('device')
-        self.pro_gamma = torch.nn.Parameter(torch.FloatTensor(1), requires_grad=True).to(self.device)
-        self.pro_gamma.data.fill_(1/train_option['pro_gamma'])
-        self.back_gamma = torch.nn.Parameter(torch.FloatTensor(1), requires_grad=True).to(self.device)
-        self.back_gamma.data.fill_(1/train_option['back_gamma'])
-        self.mask_net = mask_net
+        self.gamma = torch.nn.Parameter(torch.FloatTensor(1), requires_grad=True).to(self.device)
+        self.gamma.data.fill_(1/train_option['gamma'])
+
 
     def Train(self):
         if self.device.type == 'cuda' : torch.cuda.empty_cache()
@@ -54,25 +53,15 @@ class TrainProcess():
                 prj_train_batch = self.loadDataByPaths(prj_train_path, idx=idx, size=self.train_option['prj_size']).to(self.device)
                 warpped_cam_train = self.warpping_net_model(cam_train_batch).detach()  # compensated prj input image x^{*}
                 self.model.train()
-                back_train = torch.pow(warpped_cam_train, self.back_gamma)
-                pro_train = torch.pow(warpped_cam_train, self.pro_gamma)
-                x = torch.cat([back_train, pro_train], dim=1)
+                warpped_cam_train = torch.pow(warpped_cam_train, self.gamma)
                 # # if DEBUG:
                 # #     img = back_train[0].permute(1, 2, 0).mul(255).to('cpu').detach().numpy()
                 # #     img = np.uint8(img)
                 # #     cv2.imshow('back_train ', img)
                 # #     cv2.waitKey(0)
                 # #     cv2.destroyAllWindows()
-                b = warpped_cam_train[:, 0, :, :]
-                g = warpped_cam_train[:, 1, :, :]
-                r = warpped_cam_train[:, 2, :, :]
-                cam_mask = torch.max(torch.max(b, g), r).unsqueeze(1)
-                predict_mask = self.mask_net(warpped_cam_train)
-                predict = self.model(x, predict_mask)
+                predict = self.model(warpped_cam_train)
                 train_loss_batch, train_l2_loss_batch = self.computeLoss(predict, prj_train_batch, self.train_option.get('loss'))
-                if self.train_option['is_train_mask']:
-                    mask_loss_batch = l2_fun(predict_mask, cam_mask)
-                    train_loss_batch = train_loss_batch+mask_loss_batch
                 # perceptual loss
                 train_rmse_batch = math.sqrt(train_l2_loss_batch.item() * 3) # 3 channels rgb
                 # backpropagation and update params
@@ -87,7 +76,7 @@ class TrainProcess():
                 valid_psnr, valid_rmse, valid_ssim = 0., 0., 0.
                 # validation
                 if self.valid_data is not None:
-                    valid_psnr, valid_rmse, valid_ssim, prj_valid_pred = self.evaluate(self.model, self.mask_net,valid_data=self.valid_data)
+                    valid_psnr, valid_rmse, valid_ssim, prj_valid_pred = self.evaluate(self.model,valid_data=self.valid_data)
                 print('Epoch:{:5d}|Iter:{:5d}|Time:{}|Train Loss:{:.4f}|Train RMSE: {:.4f}|Valid PSNR: {:7s}|Valid RMSE: {:6s}'
                     '|Valid SSIM: {:6s}'.format(i,
                                                 iters,
@@ -107,11 +96,9 @@ class TrainProcess():
         if not os.path.exists(checkpoint_dir): os.makedirs(checkpoint_dir)
         title = self.optionToString(self.train_option)
         model_file_name = fullfile(checkpoint_dir, title + '.pth')
-        mask_model_name = fullfile(checkpoint_dir, title + '-mask.pth')
         torch.save(self.model, model_file_name)
-        torch.save(self.mask_net, mask_model_name)
         print('Checkpoint saved to {}\n'.format(model_file_name))
-        return model_file_name, mask_model_name, valid_psnr, valid_rmse, valid_ssim, train_msg
+        return model_file_name, valid_psnr, valid_rmse, valid_ssim, train_msg
 
     def loadDataByPaths(self, datapath, idx=None, size=None, prj_fov_mask=None):
         if idx is not None:
@@ -151,8 +138,18 @@ class TrainProcess():
             train_loss = l1_loss + l2_loss + ssim_loss
         elif 'vggLoss' in loss_option:
             pass
-        else:
-            print('Unsupported loss')
+
+        if 'hsvloss' in loss_option:
+            hsvloss = HSV.hsvloss(prj_pred, prj_train)
+            return 1000*train_loss+hsvloss, l2_loss
+
+        if 'labloss' in loss_option:
+            labloss = HSV.labloss(prj_pred, prj_train)
+            return 1000*train_loss+labloss, l2_loss
+
+        if 'klloss' in loss_option:
+            klloss = HSV.klloss(prj_pred, prj_train)
+            return train_loss+klloss, l2_loss
 
         return train_loss, l2_loss
 
@@ -162,14 +159,13 @@ class TrainProcess():
         return prj_pred
 
     # evaluate model on validation dataset
-    def evaluate(self, model, mask_net, valid_data):
+    def evaluate(self, model, valid_data):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         cam_valid = valid_data['cam_valid']
         prj_valid = valid_data['prj_valid']
 
         with torch.no_grad():
             model.eval()  # explicitly set to eval mode
-            mask_net.eval()
             # explicitly set to eval mode
             # if you have limited GPU memory, we need to predict in batch mode
             last_loc = 0
@@ -186,12 +182,7 @@ class TrainProcess():
                 prj_valid_batch = prj_valid[idx, :, :, :].to(device) if prj_valid.device.type != 'cuda' else prj_valid[
                                                                                                              idx, :, :,
                                                                                                              :]
-                # predict batch
-                predict_mask = mask_net(cam_valid_batch)
-                # back_test = torch.pow(cam_valid_batch, self.back_gamma)
-                # pro_test = torch.pow(cam_valid_batch, self.pro_gamma)
-                cam_valid_batch = torch.cat([cam_valid_batch, cam_valid_batch], dim=1)
-                predict = model(x=cam_valid_batch,  mask=predict_mask).detach()
+                predict = model(x=cam_valid_batch).detach()
                 prj_valid_pred_batch = torch.clamp(predict, max=1)
                 if type(prj_valid_pred_batch) == tuple and len(prj_valid_pred_batch) > 1: prj_valid_pred_batch = \
                 prj_valid_pred_batch[0]
@@ -218,13 +209,11 @@ class TrainProcess():
         return valid_psnr, valid_rmse, valid_ssim, prj_valid_pred
     # generate training title string
     def optionToString(self, train_option):
-        return '{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(train_option['model_name'],
+        return '{}_{}_{}_{}_{}_{}_{}'.format(train_option['model_name'],
                                                 train_option['loss'],
                                                 train_option['nums_train'],
                                                 train_option['batch_size'],
                                                 train_option['epoch'],
                                                 train_option['res_block_num'],
-                                                train_option['back_gamma'],
-                                                train_option['pro_gamma'],
-                                                train_option['is_train_mask'])
+                                                train_option['gamma'])
 

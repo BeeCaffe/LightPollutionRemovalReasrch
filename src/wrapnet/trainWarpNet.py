@@ -4,7 +4,7 @@ from time import localtime, strftime
 import src.wrapnet.ImgProc as ImgProc
 import src.wrapnet.valid as valid
 DEBUG = False
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 device_ids = [0]
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if torch.cuda.device_count() >= 1:
@@ -14,16 +14,16 @@ else:
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 args = {
-    'dataset_root': 'datasets/geocor/',
+    'dataset_root': 'F:\yandl\LightPollutionRemovalReasrch\datasets\geocor/',
     'loss_list': ['l1+l2+ssim'],
     'loss': '',#it would be set later---
     'lambda': 1e-2,
     'model_name': 'Warpping-Net-1920-1080',
     'log_dir': 'log',
     'nums_train': 50, #how many images you suppose to train ,if 0 it will train all images
-    'train_size': (1080, 1920),
-    'prj_size': (1080, 1920),
-    'epoch': 100,
+    'train_size': (512, 512),
+    'prj_size': (512, 512),
+    'epoch': 200,
     'batch_size': 4,
     'lr': 1e-3,
     'lr_drop_ratio': 0.2,

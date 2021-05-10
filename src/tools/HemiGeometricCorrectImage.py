@@ -6,23 +6,22 @@ import src.tools.Utils as utils
 import src.tools.GetRegion as GetRegion
 debug = False
 args = dict(
-    projected_img_path='I:\hemispherical\pair-net\\untrain_mask\\1.4\\',
-    save_dir='I:\hemispherical_corrected\pair-net\\untrain_mask\\1.4\\',
-    weight_path='checkpoint/Warpping-Net-1920-1080_l1+l2+ssim_50_4_100.pth',
-    width=1920,
-    height=1080,
-    cor_pt=(570, 210),
-    cor_size=(820, 450)
+    projected_img_path=r'I:\GraduationThesis\SubstractNet\diff_resblocks\projectted\1/',
+    save_dir=r'I:\GraduationThesis\SubstractNet\diff_resblocks\geocorrectted\1/',
+    weight_path='checkpoint/Warpping-Net-1920-1080_l1+l2+ssim_50_4_200.pth',
+    cor_pt=(1400, 950),
+    cor_size=(2000, 3000)
 )
 
 def ReadImage():
+    utils.rename(args['projected_img_path'])
     prj_name_list = os.listdir(args['projected_img_path'])
     prj_name_list.sort(key=lambda x: int(x[:-4]))
     sorted(prj_name_list)
     prj_imgs = []
     for prj_name in prj_name_list:
         path = args['projected_img_path'] + prj_name
-        img = cv2.resize(cv2.imread(path), (args['width'], args['height']))
+        img = cv2.imread(path)
         prj_imgs.append(img)
     return prj_imgs
 
@@ -30,8 +29,8 @@ def CorrectImage(prj_imgs):
     for i in range(0, len(prj_imgs)):
         prj_imgs[i] = GetRegion.GetRegion2(prj_imgs[i],
                                              pt=args['cor_pt'],
-                                             width=args['cor_size'][0],
-                                             height=args['cor_size'][1])
+                                             rows=args['cor_size'][0],
+                                             cols=args['cor_size'][1])
     prj_imgs = geo.cmpImage(args['weight_path'], prj_imgs, size=(1920, 1080))
     return prj_imgs
 

@@ -2,7 +2,7 @@ from src.unet.my_trainutils import *
 import src.pairnet_singlesubnet.utils as utils
 import time
 import torch
-import src.unet.my_unet_model as unet_model
+import src.unet.unet_model as unet_model
 from time import localtime,strftime
 __DEBUG=False
 os.environ['CUDA_VISIBLE_DEVICES']='0'

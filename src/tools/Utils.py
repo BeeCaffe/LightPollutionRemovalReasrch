@@ -191,7 +191,7 @@ def FillGap(img,lineLeft,lineRight):
     return img
 
 
-def GetRegion(img,pt,width,height):
+def GetRegion(img,pt,rows,cols):
         """
         function:
             GetRegion(prj,pt,width,height)
@@ -205,7 +205,7 @@ def GetRegion(img,pt,width,height):
         return:
             prj-the interesting area of this image
         """
-        img=img[pt[1]:pt[1]+height,pt[0]:pt[0]+width]
+        img=img[pt[1]:pt[1]+rows, pt[0]:pt[0]+cols]
         return img
 
 def TailorTheCameraImg(self,filePath,savePath,pt,width,height):

@@ -1,8 +1,7 @@
 from src.unet.my_trainutils import *
 import src.unet.valid as valid
-from time import localtime, strftime
-import src.unet.my_unet_model as unet_model
-import src.unet.unet_model as real_unet
+import src.unet.unet_model as unet_model
+import src.unet.real_unet as real_unet
 import os
 import torch
 DEBUG = False
@@ -17,21 +16,21 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 args = dict(dataset_root='datasets/dataset_512_no_gama_new/',
                 # loss_list=['l1','l2','l1+l2','l1+ssim','l2+ssim','l1+l2+ssim'],
-                loss_list=['l2'],
+                loss_list=['l1+l2+ssim+klloss'], #l1, l2, ssim, hsvloss, vggloss, labloss, klloss
                 loss='',
                 model_name='unet',
                 res_block_num_list=[0],
                 res_block_num=[],
                 log_dir='log/',
                 warpping_net_pth='checkpoint/Warpping-Net_l1+l2+ssim_4000_256_50_0.001_0.2_5000_0.0001.pth',
-                model_type="real_unet", #"my_unet", "real_unet", "compennet"
-                gamma_list=[1.0],
+                model_type="my_unet", #"my_unet", "real_unet", "compennet"
+                gamma_list=[1.2],
                 nums_train=4000,
+                epoch=5,
                 nums_valid=50,
                 train_size=(256, 256),
                 prj_size=(256, 256),
                 gamma=1.0,
-                epoch=100,
                 batch_size=16,
                 vgg_lambda=1e-2,
                 lr=1e-2,
@@ -53,7 +52,7 @@ def optionToString(train_option):
                                    train_option['batch_size'],
                                    train_option['epoch'],
                                     train_option['res_block_num'],
-                                         train_option['gamma'])
+                                    train_option['gamma'])
 
 def saveDict(args=None, save_args=None):
     log_dir = args.get('log_dir')+args['model_name']+'/'
@@ -64,7 +63,7 @@ def saveDict(args=None, save_args=None):
 
 checkpoint_pth = "checkpoint/"+args['model_name']+'/'
 output_pth = "output/"+args['model_name']+'/'
-desire_path = "res/input/"
+desire_path = "input/unet/"
 if not os.path.exists(checkpoint_pth):
     os.makedirs(checkpoint_pth)
 if not os.path.exists(output_pth):
@@ -101,7 +100,7 @@ for num in args['res_block_num_list']:
                 'prj_train': 'prj/train'
             }
             # back_path, pro_path, valid_psnr, valid_rmse, valid_ssim = MyTrainUtils.TrainProcess(model_pro, model_back,warping_net_model, valid_data, cam_path_dict, args).Train()
-            pth, valid_psnr, valid_rmse, valid_ssim, train_msg_1 = TrainProcess(model, warping_net_model, valid_data, cam_path_dict, args).Train()
+            pth, valid_psnr, valid_rmse, valid_ssim, train_msg_1 = TrainProcess(model,warping_net_model, valid_data, cam_path_dict, args).Train()
             # save result to log file
             saveDict(args, train_msg_1)
             if args['save_compensation']:

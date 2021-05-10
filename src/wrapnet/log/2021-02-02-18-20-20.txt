@@ -1,0 +1,2 @@
+model_name                    loss_function       nums_train     batch_size     epoch          uncmp_psnr     uncmp_rmse     uncmp_ssim     valid_psnr     valid_rmse     valid_ssim     
+Warpping-Net-1920-1080        l1+l2+ssim          16             4              50             11.1823        0.4780         0.5140         11.8761        0.4413         0.5344         

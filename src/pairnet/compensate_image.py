@@ -10,9 +10,9 @@ if torch.cuda.device_count()>=1:
 else:
     print('Valid with CPU...')
 args = {
-    "desire_img_path": 'res/input/', #images path of which you suppose to compensate
-    "save_path": 'output/unet/', #directory of save compensated images
-    'checkpoint_path': 'checkpoint/unet/',
+    "desire_img_path": r'F:\yandl\LightPollutionRemovalReasrch\input\unet/', #images path of which you suppose to compensate
+    "save_path": r'output/unet/', #directory of save compensated images
+    'checkpoint_path': r'F:\yandl\LightPollutionRemovalReasrch\checkpoint\pair_net/',
     "size": (1088, 1920), #compensated image's size
 }
 

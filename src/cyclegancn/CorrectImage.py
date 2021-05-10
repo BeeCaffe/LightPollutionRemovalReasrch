@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import torch
 import cv2
-from src.cyclegan_pairnet.train import combine
 
 from src.cyclegan.models import Generator
 from src.cyclegancn.datasets import ImageDataset

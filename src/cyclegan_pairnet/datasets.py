@@ -25,16 +25,16 @@ class ImageDataset(Dataset):
         item_A = img
 
         if self.unaligned:
-            img = cv2.imread(self.files_A[index % len(self.files_B)])
+            img = cv2.imread(self.files_B[index % len(self.files_B)])
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             if self.img_size is not None:
-                img = img.resize(self.img_size)
+                img = cv2.resize(img, self.img_size)
             item_B = img
         else:
-            img = cv2.imread(self.files_A[index % len(self.files_B)])
+            img = cv2.imread(self.files_B[index % len(self.files_B)])
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             if self.img_size is not None:
-                img = img.resize(self.img_size)
+                img = cv2.resize(img, self.img_size)
             item_B = img
         return {'A': item_A, 'B': item_B}
 

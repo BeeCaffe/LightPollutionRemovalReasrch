@@ -146,7 +146,7 @@ def opt2Str(opt):
                                 opt.pro_gamma,
                                 opt.back_gamma)
 
-def combine(pred, img, mask, weight=2., tag="notag"):
+def combine(pred, img, mask, weight=2., tag="notag", epoch=1, iter=1):
     pred_back, pred_pro = torch.chunk(pred, chunks=2, dim=1)
     mask = torch.cat([mask, mask, mask], dim=1)
     mask = guidedfilter(img, mask)
@@ -156,38 +156,38 @@ def combine(pred, img, mask, weight=2., tag="notag"):
     back = torch.mul(pred_back, mask_back)
     pro = torch.mul(pred_pro, mask_pro)
     comb = torch.clamp(back + pro, max=1, min=0)
-
-    if DEBUG:
-        # img_log(mask, "mask")
-        # img_log(mask_back, "mask_back")
-        # img_log(pred_pro, "pred_pro")
-        # img_log(pred_back, "pred_back")
-        # img_log(back, "back")
-        # img_log(pro, "pro")
-        # img_log(pred, "combinnet output")
+    p, c, w, h = comb.shape
+    if iter%100 ==0 :
         img = CombineImages1DXLim([
-                                   torch2img(img),
-                                   torch2img(mask_pro),
-                                   torch2img(mask_back),
-                                   torch2img(pred_back),
-                                   torch2img(pred_pro),
-                                   torch2img(pro),
-                                   torch2img(back),
-                                   torch2img(comb)])
-        cv2.imwrite("F:/yandl/temp/"+time.strftime("%Y-%m-%d-%H-%M-%S-"+tag, time.localtime(time.time()))+'.jpg', img)
-
+            torch2img(img),
+            torch2img(mask_pro),
+            torch2img(mask_back),
+            torch2img(pred_back),
+            torch2img(pred_pro),
+            torch2img(pro),
+            torch2img(back),
+            torch2img(comb)])
+        cv2.imwrite("F:/yandl/temp/"+"epoch{:<d}_iter{:<d}_{:<s}_{:<s}".format(epoch, iter, "combine", tag) +'.jpg', img)
     return comb
 
-def split(input_3c, img, mask, weight=2., gamma_pro=1, gamma_back=1):
+def split(input_3c, img, mask, weight=2., gamma_pro=1, gamma_back=1, epoch=1, iter=1, tag="notag"):
     mask = torch.cat([mask, mask, mask], dim=1)
     mask = guidedfilter(img, mask)
     mask_pro = torch.clamp(weight * mask, max=1, min=0)
     mask_back = torch.clamp(torch.ones_like(mask) - torch.clamp(weight * mask, max=1, min=0), max=1, min=0)
-
     back = torch.mul(torch.pow(input_3c, gamma_back), mask_back)
     pro = torch.mul(torch.pow(input_3c, gamma_pro),  mask_pro)
     output_6c = torch.clamp(torch.cat([back, pro], dim=1), max=1, min=0)
-
+    if iter%100 == 0:
+        img = CombineImages1DXLim([
+            torch2img(img),
+            torch2img(mask_pro),
+            torch2img(mask_back),
+            torch2img(torch.pow(input_3c, gamma_pro)),
+            torch2img(torch.pow(input_3c, gamma_back)),
+            torch2img(pro),
+            torch2img(back)])
+        cv2.imwrite("F:/yandl/temp/"+"epoch{:<d}_iter{:<d}_{:<s}_{:<s}".format(epoch, iter, "split", tag) +'.jpg', img)
     return output_6c
 
 def guidedfilter(img, mask, r=81, eps=0.001):
@@ -234,7 +234,7 @@ def bright_channel(x):
     bright_channel = torch.max(torch.max(b, g), r).unsqueeze(1)
     bright_channel = torch2cv(bright_channel)
     r = 7
-    n,_,_,_ = bright_channel.shape
+    n, _,_,_ = bright_channel.shape
     for i in range(n):
         bright_channel[i,:,:,0] = cv2.erode(bright_channel[i,:,:,0], np.ones((2 * r + 1, 2 * r + 1)))
     return cv2torch(bright_channel)

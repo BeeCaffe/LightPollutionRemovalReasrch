@@ -3,14 +3,13 @@
 import argparse
 import itertools
 
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from PIL import Image
-import numpy as np
 import cv2
 import torch
 
+import time
+import torch
 from src.cyclegan_pairnet.models import Generator
 from src.cyclegan_pairnet.models import Discriminator
 from src.cyclegan_pairnet.utils import ReplayBuffer
@@ -27,9 +26,11 @@ from src.cyclegan_pairnet.utils import opt2Str
 from src.cyclegan_pairnet.utils import split
 from src.cyclegan_pairnet.utils import cv2torch
 from src.cyclegan_pairnet.utils import normalize
+from src.cyclegan_pairnet.utils import CombineImages1DXLim
+from src.cyclegan_pairnet.utils import torch2img
 import os
 
-DEBUG = False
+DEBUG = True
 
 """
     A: camera captured image
@@ -39,9 +40,9 @@ parser = argparse.ArgumentParser()
 torch.cuda.set_device(0)
 parser.add_argument('--model_name', type=str, default='cyclegan-pairnet', help='root directory of the dataset')
 parser.add_argument('--epoch', type=int, default=0, help='starting epoch')
-parser.add_argument('--n_epochs', type=int, default=5, help='number of epochs of training')
+parser.add_argument('--n_epochs', type=int, default=100, help='number of epochs of training')
 parser.add_argument('--train_num', type=int, default=15000, help='how many image used to train')
-parser.add_argument('--batchSize', type=int, default=4, help='size of the batches')
+parser.add_argument('--batchSize', type=int, default=2, help='size of the batches')
 parser.add_argument('--dataroot', type=str, default='datasets/cyclecn-curve/', help='root directory of the dataset')
 parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate')
 parser.add_argument('--decay_epoch', type=int, default=1, help='epoch to start linearly decaying the learning rate to 0')
@@ -50,8 +51,8 @@ parser.add_argument('--input_nc', type=int, default=6, help='number of channels 
 parser.add_argument('--output_nc',  type=int, default=6, help='number of channels of output data')
 parser.add_argument('--cuda', action='store_false', help='use GPU computation')
 parser.add_argument('--n_cpu', type=int, default=0, help='number of cpu threads to use during batch generation')
-parser.add_argument('--pro_gamma', type=float, default=1., help='gamma correction value')
-parser.add_argument('--back_gamma', type=float, default=1.2, help='gamma correction value')
+parser.add_argument('--pro_gamma', type=float, default=1.0, help='gamma correction value')
+parser.add_argument('--back_gamma', type=float, default=1., help='gamma correction value')
 opt = parser.parse_args()
 print(opt)
 
@@ -89,6 +90,8 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_cycle = torch.nn.L1Loss()
 criterion_identity = torch.nn.L1Loss()
 l2_loss = torch.nn.MSELoss()
+l1_loss = torch.nn.L1Loss()
+
 
 # Optimizers & LR schedulers
 optimizer_G = torch.optim.Adam(itertools.chain(netG_A2B.parameters(), netG_B2A.parameters()),
@@ -142,8 +145,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
         real_B_3c = torch.clamp(real_B_3c, max=1, min=0)
         mask_A = mask_net(real_A_3c)
         mask_B = mask_net(real_B_3c)
-        real_A_6c = split(real_A_3c, real_A_3c, mask_A, 2, gamma_back=1.2, gamma_pro=1.4)
-        real_B_6c = split(real_B_3c, real_B_3c, mask_B, 2, gamma_back=1., gamma_pro=1.)
+        real_A_6c = split(real_A_3c, real_A_3c, mask_A, 2, gamma_back=1/opt.back_gamma, gamma_pro=1/opt.pro_gamma,
+                          epoch=epoch, iter=i, tag="A")
+        real_B_6c = split(real_B_3c, real_B_3c, mask_B, 2, gamma_back=1, gamma_pro=1.,
+                          epoch=epoch, iter=i, tag="B")
 
         ###### Generators A2B and B2A ######
         optimizer_G.zero_grad()
@@ -164,37 +169,50 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # GAN loss
         # round 1
         fake_B_6c = netG_A2B(real_A_6c)
-        fake_B_3c = combine(fake_B_6c, real_A_3c, mask_A, tag="gan_A2B")
+        fake_B_3c = combine(fake_B_6c, real_A_3c, mask_A, tag="gan_A2B", epoch=epoch, iter=i)
         pred_fake = netD_B(fake_B_3c)
         loss_GAN_A2B = criterion_GAN(pred_fake, target_real)
 
         # round2
         fake_A_6c = netG_B2A(real_B_6c)
-        fake_A_3c = combine(fake_A_6c, real_B_3c, mask_B, tag="gan_B2A")
+        fake_A_3c = combine(fake_A_6c, real_B_3c, mask_B, tag="gan_B2A", epoch=epoch, iter=i)
         pred_fake = netD_A(fake_A_3c)
         loss_GAN_B2A = criterion_GAN(pred_fake, target_real)
 
         # Cycle loss
         # round 1
         recovered_A_6c = netG_B2A(fake_B_6c)
-        recovered_A_3c = combine(recovered_A_6c, real_A_3c, mask_A, tag="cycle_B2A")
+        recovered_A_3c = combine(recovered_A_6c, real_A_3c, mask_A, tag="cycle_B2A", epoch=epoch, iter=i)
         loss_cycle_ABA = criterion_cycle(recovered_A_3c, real_A_3c) * 10.0
 
         # round 2
         recovered_B_6c = netG_A2B(fake_A_6c)
-        recovered_B_3c = combine(recovered_B_6c, real_B_3c, mask_B, tag="cycle_A2B")
+        recovered_B_3c = combine(recovered_B_6c, real_B_3c, mask_B, tag="cycle_A2B", epoch=epoch, iter=i)
         loss_cycle_BAB = criterion_cycle(recovered_B_3c, real_B_3c) * 10.0
 
         # Total loss
         # loss_G = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A + loss_cycle_ABA + loss_cycle_BAB
         loss_G = loss_GAN_A2B + loss_GAN_B2A + loss_cycle_ABA + loss_cycle_BAB
-        loss_Mask = l2_loss(mask_A, bright_channel(real_A_3c))
-
+        bright_channel_mask = bright_channel(real_B_3c)
+        loss_Mask = l2_loss(mask_B, bright_channel_mask) + l1_loss(mask_B, bright_channel_mask)
+        loss_Mask = loss_Mask*10.
         loss_Mask.backward(retain_graph=True)
         loss_G.backward(retain_graph=True)
-
-        optimizer_G.step()
-        optimizer_mask.step()
+        try:
+            optimizer_G.step()
+            optimizer_mask.step()
+        except RuntimeError:
+            print('a error')
+        if i % 100 == 0:
+            img = CombineImages1DXLim([
+                                       torch2img(real_A_3c),
+                                       torch2img(real_B_3c),
+                                       torch2img(torch.cat([mask_B, mask_B, mask_B], dim=1)),
+                                       torch2img(torch.cat([bright_channel_mask, bright_channel_mask, bright_channel_mask], dim=1)),
+                                       torch2img(fake_B_3c),
+                                       torch2img(fake_A_3c)
+                                       ])
+            cv2.imwrite("F:/yandl/temp/" + "epoch{:<d}_iter{:<d}_{:<s}_{:<s}".format(epoch, i, "train", "notag") + '.jpg', img)
         ###################################
 
         ###### Discriminator A ######
@@ -234,7 +252,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_D_B.backward(retain_graph=True)
 
         optimizer_D_B.step()
-        optimizer_mask.step()
 
         ###################################
 
@@ -244,21 +261,35 @@ for epoch in range(opt.epoch, opt.n_epochs):
                     'loss_G_cycle': (loss_cycle_ABA + loss_cycle_BAB),
                     'loss_D': (loss_D_A + loss_D_B),
                     'loss_Mask':loss_Mask})
+        ## save per 5 epoch
+        if (epoch+1)%5==0 and i==0:
+            save_checkpoint_path = 'checkpoint/' + opt.model_name + '/' + opt2Str(opt) + '/'+'epoch_{:<d}'.format(epoch)+'/'
+            if not os.path.exists(save_checkpoint_path):
+                os.makedirs(save_checkpoint_path)
+            torch.save(netG_A2B.state_dict(), save_checkpoint_path + 'netG_A2B.pth')
+            torch.save(netG_B2A.state_dict(), save_checkpoint_path + 'netG_B2A.pth')
+            torch.save(netD_A.state_dict(), save_checkpoint_path + 'netD_A.pth')
+            torch.save(netD_B.state_dict(), save_checkpoint_path + 'netD_B.pth')
+            torch.save(mask_net, save_checkpoint_path + 'masknet.pth')
+
+            ## compensate per 5 epoch
+            with torch.no_grad():
+                save_checkpoint_path = 'checkpoint/' + opt.model_name + '/' + opt2Str(opt) + '/' + 'epoch_{:<d}'.format(
+                    epoch) + '/'
+                compensate_img(A2Bpth=save_checkpoint_path + 'netG_A2B.pth',
+                               B2Apth=save_checkpoint_path + 'netG_B2A.pth',
+                               Maskpth=save_checkpoint_path + 'masknet.pth',
+                               dataroot='input/cyclegancn/',
+                               save_filename=opt2Str(opt)+'/'+'epoch_{:<d}'.format(epoch),
+                               size=(512, 512)
+                               )
+
+
     # Update learning rates
     lr_scheduler_G.step()
     lr_scheduler_D_A.step()
     lr_scheduler_D_B.step()
     lr_scheduler_MaskNet.step()
-
-    # Save models checkpoints
-    save_checkpoint_path = 'checkpoint/'+opt.model_name+'/'+opt2Str(opt)+'/'
-    if not os.path.exists(save_checkpoint_path):
-        os.makedirs(save_checkpoint_path)
-    torch.save(netG_A2B.state_dict(), save_checkpoint_path+'netG_A2B.pth')
-    torch.save(netG_B2A.state_dict(), save_checkpoint_path+'netG_B2A.pth')
-    torch.save(netD_A.state_dict(), save_checkpoint_path+'netD_A.pth')
-    torch.save(netD_B.state_dict(), save_checkpoint_path+'netD_B.pth')
-    torch.save(mask_net, save_checkpoint_path+'masknet.pth')
 
 del netG_A2B
 del netG_B2A
@@ -273,5 +304,5 @@ with torch.no_grad():
                    B2Apth=save_checkpoint_path+'netG_B2A.pth',
                    Maskpth=save_checkpoint_path+'masknet.pth',
                    dataroot='input/cyclegancn/',
-                   optstr=opt2Str(opt))
+                   save_filename=opt2Str(opt))
 ###################################

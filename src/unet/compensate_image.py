@@ -10,10 +10,10 @@ if torch.cuda.device_count()>=1:
 else:
     print('Valid with CPU...')
 args = {
-    "desire_img_path": 'res/input/', #images path of which you suppose to compensate
+    "desire_img_path": r'I:\Backup\Images\projector/', #images path of which you suppose to compensate
     "save_path": 'output/unet/', #directory of save compensated images
     'checkpoint_path': 'checkpoint/unet/',
-    "size": (1088, 1920), #compensated image's size
+    "size": (768, 1024), #compensated image's size
 }
 
 pth_list = os.listdir(args['checkpoint_path'])

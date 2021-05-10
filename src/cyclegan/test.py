@@ -15,10 +15,10 @@ from src.cyclegancn.datasets import ImageDataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batchSize', type=int, default=1, help='size of the batches')
-parser.add_argument('--dataroot', type=str, default='datasets/firstdataset/', help='root directory of the dataset')
+parser.add_argument('--dataroot', type=str, default=r'input/cyclegan/', help='root directory of the dataset')
 parser.add_argument('--input_nc', type=int, default=3, help='number of channels of input data')
 parser.add_argument('--output_nc', type=int, default=3, help='number of channels of output data')
-parser.add_argument('--size', type=int, default=64, help='size of the data (squared assumed)')
+parser.add_argument('--size', type=int, default=512, help='size of the data (squared assumed)')
 parser.add_argument('--cuda', action='store_false', help='use GPU computation')
 parser.add_argument('--n_cpu', type=int, default=0, help='number of cpu threads to use during batch generation')
 parser.add_argument('--generator_A2B', type=str, default='output/netG_A2B.pth', help='A2B generator checkpoint file')
@@ -61,10 +61,10 @@ dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, mode
 ###### Testing######
 
 # Create output dirs if they don't exist
-if not os.path.exists('output/A'):
-    os.makedirs('output/A')
-if not os.path.exists('output/B'):
-    os.makedirs('output/B')
+if not os.path.exists('output/cyclegan/A'):
+    os.makedirs('output/cyclegan/A')
+if not os.path.exists('output/cyclegan/B'):
+    os.makedirs('output/cyclegan/B')
 
 for i, batch in enumerate(dataloader):
     # Set model input
@@ -76,8 +76,8 @@ for i, batch in enumerate(dataloader):
     fake_A = 0.5*(netG_B2A(real_B).data + 1.0)
 
     # Save image files
-    save_image(fake_A, 'output/A/%04d.png' % (i+1))
-    save_image(fake_B, 'output/B/%04d.png' % (i+1))
+    save_image(fake_A, 'output/cyclegan/A/%04d.png' % (i+1))
+    save_image(fake_B, 'output/cyclegan/B/%04d.png' % (i+1))
 
     sys.stdout.write('\rGenerated images %04d of %04d' % (i+1, len(dataloader)))
 
